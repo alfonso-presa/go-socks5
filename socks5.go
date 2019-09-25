@@ -139,9 +139,12 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	// Authenticate the connection
 	authContext, err := s.authenticate(conn, bufConn)
 	if err != nil {
-		err = fmt.Errorf("Failed to authenticate: %v", err)
-		s.config.Logger.Printf("[ERR] socks: %v", err)
-		return err
+		err := s.authenticate(conn, bufConn)
+		if err != nil {
+			err = fmt.Errorf("Failed to authenticate: %v", err)
+			s.config.Logger.Printf("[ERR] socks: %v", err)
+			return err
+		}
 	}
 
 	request, err := NewRequest(bufConn)
@@ -160,9 +163,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 
 	// Process the client request
 	if err := s.handleRequest(request, conn); err != nil {
-		err = fmt.Errorf("Failed to handle request: %v", err)
-		s.config.Logger.Printf("[ERR] socks: %v", err)
-		return err
+		s.config.Logger.Printf("Retry");
+		if err := s.handleRequest(request, conn); err != nil {
+			err = fmt.Errorf("Failed to handle request :-( : %v", err)
+			s.config.Logger.Printf("[ERR] socks: %v", err)
+			return err
+		} else {
+			s.config.Logger.Printf("Worked");
+		}
 	}
 
 	return nil
